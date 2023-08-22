@@ -2,15 +2,53 @@
 using System.Text.Json;
 
 Console.WriteLine("Hello, I am ETIM API Saver!");
-
+const string _authorizationUri = "https://etimauth.etim-international.com/connect/token";
 const string _featureUri = "https://etimapi.etim-international.com/api/v2/Feature/Search";
 const string _valueUri = "https://etimapi.etim-international.com/api/v2/Value/Search";
 HttpClient _httpClient = new HttpClient();
 
-// First step - get 
+// STEP ONE - get access token
+
+string _authorization = "Basic c2llbWVuc191YTpYMGV5Y0hRWXFjUW9neU5GZ1ZRQ3lE";
+
+HttpRequestMessage _httpPostAuthorizationRequest = new HttpRequestMessage(HttpMethod.Post, _authorizationUri)
+{
+    Content = new FormUrlEncodedContent(new KeyValuePair<string, string>[]
+    {
+        new KeyValuePair<string, string>("grant_type", "client_credentials"),
+        new KeyValuePair<string, string>("scope", "EtimApi")
+    })
+};
+
+_httpPostAuthorizationRequest.Headers.Add("Authorization", _authorization);
+
+var _authorizationResponse = _httpClient.SendAsync(_httpPostAuthorizationRequest).Result;
+
+ResultOfRequestAccessToken? _authorizationResult = null;
+
+if (_authorizationResponse.IsSuccessStatusCode)
+{
+    Console.WriteLine("Ok");
+    try
+    {
+        _authorizationResult = _authorizationResponse.Content.ReadFromJsonAsync<ResultOfRequestAccessToken>().Result;
+    }
+    catch (NotSupportedException)
+    {
+        Console.WriteLine("Content type is not supported");
+    }
+    catch (JsonException)
+    {
+        Console.WriteLine("Invalid json");
+    }
+}
 
 
-// Second step
+
+Console.WriteLine("auth end");
+
+
+// STEP TWO - get data
 
 var _jsonRequest = new RequestAllFeatureWithMaximumDetailsAPIv2DTO()
 {
@@ -32,14 +70,14 @@ HttpRequestMessage _httpPostRequest = new HttpRequestMessage(HttpMethod.Post, _f
 
 _httpPostRequest.Content = JsonContent.Create(_jsonRequest);
 
-_httpPostRequest.Headers.Add("Authorization", @"Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IkE4M0EyMTZDRTFCN0YxQUMzRTkzNkM2Qjc1MkE0MkQ4QUE0QjE4NkZSUzI1NiIsInR5cCI6ImF0K2p3dCIsIng1dCI6InFEb2hiT0czOGF3LWsyeHJkU3BDMktwTEdHOCJ9.eyJuYmYiOjE2OTI3MDkzMDMsImV4cCI6MTY5MjcxMjkwMywiaXNzIjoiaHR0cHM6Ly9ldGltYXV0aC5ldGltLWludGVybmF0aW9uYWwuY29tIiwiYXVkIjoiRXRpbUFwaSIsImNsaWVudF9pZCI6InNpZW1lbnNfdWEiLCJjbGllbnRfbGFuZ3VhZ2UiOlsiRU4iLCJubC1CRSIsImZyLUJFIiwiZmktRkkiLCJkZS1ERSIsIml0LUlUIiwibmItTk8iXSwianRpIjoiMEVEODdCNjM3RjgwRENGRUJCNDE1QThDQjlCNkVERDYiLCJpYXQiOjE2OTI3MDkzMDMsInNjb3BlIjpbIkV0aW1BcGkiXX0.GCvTw0-ZXb_GBIAuTna_J2bCLS2WclxBLaKSW7BFgXIIVn9b_UpQ5nYpCHww59ri6BoqySmM52pfKb1iD1ICUEP5IXGTd2Sf61iAX0lrLDN7BpOAroUcyzxaJUwmUg3Ip2RhhkPb3T4KAilWnuxnRAnjYZtOIJaxr3uCdxD9mlEzc05hupA_veup_b44Qrq_3nRwVSfEj5Cp-Om60VBOlQrppxDkbzRskp9dZGrcKP694irlJAZvplA4L1prMZKI1FwOWdwlO0pmv-qjZA_na4k3aA4v8wrFLye6jfgRLPblSu7VwI_iV2pL_UVmm0y0ii7njgIcUJjPppYfV2FkGg");
+string _token =$"Bearer {_authorizationResult?.Access_token ?? "no token"}";
+_httpPostRequest.Headers.Add("Authorization", _token);
 //_httpPostRequest.Headers.Add("Content-Type", "application/json");
 //_httpPostRequest.Headers.Add("Accept", "*/*");                        // not necessarily
 //_httpPostRequest.Headers.Add("Accept-Encoding", "gzip, deflate, br"); // not necessarily
 //_httpPostRequest.Headers.Add("Connection", "keep-alive");             // not necessarily
 //_httpPostRequest.Headers.Add("Host", "etimapi.etim-international.com");
 //_httpPostRequest.Headers.Add("Content-Length", "147");
-
 
 var _response = _httpClient.SendAsync(_httpPostRequest).Result;
 
