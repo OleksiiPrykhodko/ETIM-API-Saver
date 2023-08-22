@@ -5,6 +5,12 @@ Console.WriteLine("Hello, I am ETIM API Saver!");
 
 const string _featureUri = "https://etimapi.etim-international.com/api/v2/Feature/Search";
 const string _valueUri = "https://etimapi.etim-international.com/api/v2/Value/Search";
+HttpClient _httpClient = new HttpClient();
+
+// First step - get 
+
+
+// Second step
 
 var _jsonRequest = new RequestAllFeatureWithMaximumDetailsAPIv2DTO()
 {
@@ -18,10 +24,6 @@ var _jsonRequest = new RequestAllFeatureWithMaximumDetailsAPIv2DTO()
         Translations = false
     }
 };
-
-
-
-HttpClient _httpClient = new HttpClient();
 
 HttpRequestMessage _httpPostRequest = new HttpRequestMessage(HttpMethod.Post, _featureUri)
 {
@@ -41,16 +43,16 @@ _httpPostRequest.Headers.Add("Authorization", @"Bearer eyJhbGciOiJSUzI1NiIsImtpZ
 
 var _response = _httpClient.SendAsync(_httpPostRequest).Result;
 
-ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO? result = null;
+ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO? _result = null;
 
 if (_response.IsSuccessStatusCode)
 {
     Console.WriteLine("Ok");
     try
     {
-        result = _response.Content.ReadFromJsonAsync<ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO>().Result;
+        _result = _response.Content.ReadFromJsonAsync<ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO>().Result;
     }
-    catch(NotSupportedException)
+    catch (NotSupportedException)
     {
         Console.WriteLine("Content type is not supported");
     }
@@ -60,9 +62,9 @@ if (_response.IsSuccessStatusCode)
     }
 }
 
-if (result is not null)
+if (_result is not null)
 {
-    Console.WriteLine(result.total);
+    Console.WriteLine(_result.Total);
 }
 
 
@@ -105,30 +107,39 @@ public class Include
 
 public class ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO
 {
-    public int total { get; set; }
-    public Feature[] features { get; set; }
+    public int Total { get; set; }
+    public Feature[] Features { get; set; }
 }
 
 public class Feature
 {
-    public string code { get; set; }
-    public string type { get; set; }
-    public bool deprecated { get; set; }
-    public string description { get; set; }
+    public string Code { get; set; }
+    public string Type { get; set; }
+    public bool Deprecated { get; set; }
+    public string Description { get; set; }
 }
 
 public class ResultOfRequestAllValuesWithMaximumDetailsAPIv2DTO
 {
-    public int total { get; set; }
-    public Value[] values { get; set; }
+    public int Total { get; set; }
+    public Value[] Values { get; set; }
 }
 
 public class Value
 {
-    public string code { get; set; }
-    public bool deprecated { get; set; }
-    public string description { get; set; }
+    public string Code { get; set; }
+    public bool Deprecated { get; set; }
+    public string Description { get; set; }
 }
 
+// access_token
+
+public class ResultOfRequestAccessToken
+{
+    public string Access_token { get; set; }
+    public int Expires_in { get; set; }
+    public string Token_type { get; set; }
+    public string Scope { get; set; }
+}
 
 
