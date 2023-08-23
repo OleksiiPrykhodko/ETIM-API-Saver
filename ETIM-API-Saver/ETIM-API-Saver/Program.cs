@@ -1,6 +1,10 @@
 ﻿using System.Net.Http.Json;
 using System.Net.Sockets;
 using System.Text.Json;
+using Common.DTO;
+using Common.DTO.Request;
+using Common.DTO.Result;
+
 
 Console.WriteLine("Hello, I am ETIM API Saver!");
 Console.WriteLine();
@@ -8,6 +12,8 @@ Console.WriteLine();
 const string _authorizationUri = "https://etimauth.etim-international.com/connect/token";
 const string _featureUri = "https://etimapi.etim-international.com/api/v2/Feature/Search";
 const string _valueUri = "https://etimapi.etim-international.com/api/v2/Value/Search";
+
+const string _directoryForFilesPath = @"./Generated files";
 
 string _authorization = "Basic c2llbWVuc191YTpYMGV5Y0hRWXFjUW9neU5GZ1ZRQ3lE";
 
@@ -199,6 +205,14 @@ Console.WriteLine();
 Console.WriteLine("Data in file saving step is started.");
 
 
+// If directory does not exist, create it
+if (!Directory.Exists(_directoryForFilesPath))
+{
+    Directory.CreateDirectory(_directoryForFilesPath);
+}
+
+
+
 
 Console.WriteLine("The End");
 Console.ReadKey();
@@ -206,72 +220,18 @@ Console.ReadKey();
 
 
 
-public class RequestAllFeatureWithMaximumDetailsAPIv2DTO
-{
-    public int From { get; set; }
-    // Can't be more than 1000
-    public int Size { get; set; }
-    // "EN"
-    public string Languagecode { get; set; }
-    // false
-    public bool Deprecated { get; set; }
-    public Include Include { get; set; }
-}
-public class RequestAllValuesWithMaximumDetailsAPIv2DTO
-{
-    public int From { get; set; }
-    // Can't be more than 1000
-    public int Size { get; set; }
-    // "EN"
-    public string Languagecode { get; set; }
-    // false
-    public bool Deprecated { get; set; }
-    public Include Include { get; set; }
-}
 
-public class Include
-{
-    // true
-    public bool Descriptions { get; set; }
-    // false
-    public bool Translations { get; set; }
-}
 
-public class ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO
-{
-    public int Total { get; set; }
-    public Feature[] Features { get; set; }
-}
 
-public class Feature
-{
-    public string Code { get; set; }
-    public string Type { get; set; }
-    public bool Deprecated { get; set; }
-    public string Description { get; set; }
-}
 
-public class ResultOfRequestAllValuesWithMaximumDetailsAPIv2DTO
-{
-    public int Total { get; set; }
-    public Value[] Values { get; set; }
-}
 
-public class Value
-{
-    public string Code { get; set; }
-    public bool Deprecated { get; set; }
-    public string Description { get; set; }
-}
 
-// access_token
 
-public class ResultOfRequestAccessToken
-{
-    public string Access_token { get; set; }
-    public int Expires_in { get; set; }
-    public string Token_type { get; set; }
-    public string Scope { get; set; }
-}
+
+
+
+
+
+
 
 
