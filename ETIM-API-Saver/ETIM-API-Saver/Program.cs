@@ -1,15 +1,25 @@
 ﻿using System.Net.Http.Json;
+using System.Net.Sockets;
 using System.Text.Json;
 
 Console.WriteLine("Hello, I am ETIM API Saver!");
+Console.WriteLine();
+
 const string _authorizationUri = "https://etimauth.etim-international.com/connect/token";
 const string _featureUri = "https://etimapi.etim-international.com/api/v2/Feature/Search";
 const string _valueUri = "https://etimapi.etim-international.com/api/v2/Value/Search";
-HttpClient _httpClient = new HttpClient();
-
-// STEP ONE - get access token
 
 string _authorization = "Basic c2llbWVuc191YTpYMGV5Y0hRWXFjUW9neU5GZ1ZRQ3lE";
+
+HttpClient _httpClient = new HttpClient();
+
+var _listOfAllFeatures = new List<Feature>();
+
+int _totalNumberOfFeatures = 0;
+int _numberOfAlreadyLoadedFeatures = 0;
+
+// STEP ONE - get access token ======================================================
+Console.WriteLine("Authorization step is started.");
 
 HttpRequestMessage _httpPostAuthorizationRequest = new HttpRequestMessage(HttpMethod.Post, _authorizationUri)
 {
@@ -22,91 +32,175 @@ HttpRequestMessage _httpPostAuthorizationRequest = new HttpRequestMessage(HttpMe
 
 _httpPostAuthorizationRequest.Headers.Add("Authorization", _authorization);
 
-var _authorizationResponse = _httpClient.SendAsync(_httpPostAuthorizationRequest).Result;
+HttpResponseMessage? _authorizationResponse = null;
+
+try
+{
+   _authorizationResponse = _httpClient.SendAsync(_httpPostAuthorizationRequest).Result;
+}
+catch (Exception e)
+{
+    Console.ForegroundColor = ConsoleColor.Red;
+    Console.WriteLine($"Error! {e.Message}");
+    Console.WriteLine("Check internet connection and try again!");
+}
+finally
+{
+    Console.ResetColor();
+}
 
 ResultOfRequestAccessToken? _authorizationResult = null;
 
-if (_authorizationResponse.IsSuccessStatusCode)
+if (_authorizationResponse is not null && _authorizationResponse.IsSuccessStatusCode)
 {
-    Console.WriteLine("Ok");
+    Console.WriteLine("Authorization successful.");
     try
     {
         _authorizationResult = _authorizationResponse.Content.ReadFromJsonAsync<ResultOfRequestAccessToken>().Result;
     }
     catch (NotSupportedException)
     {
-        Console.WriteLine("Content type is not supported");
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("Error! Content type is not supported.");
     }
     catch (JsonException)
     {
-        Console.WriteLine("Invalid json");
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("Error! Invalid json.");
+    }
+    catch (Exception e)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"Error! {e.Message}");
+    }
+    finally
+    {
+        Console.ResetColor();
     }
 }
-
-
-
-Console.WriteLine("auth end");
-
-
-// STEP TWO - get data
-
-var _jsonRequest = new RequestAllFeatureWithMaximumDetailsAPIv2DTO()
+else
 {
-    From = 0,
-    Size = 2,
-    Languagecode = "EN",
-    Deprecated = false,
-    Include = new Include
-    {
-        Descriptions = true,
-        Translations = false
-    }
-};
-
-HttpRequestMessage _httpPostRequest = new HttpRequestMessage(HttpMethod.Post, _featureUri)
-{
-    //Content = JsonContent.Create(_jsonRequest)
-};
-
-_httpPostRequest.Content = JsonContent.Create(_jsonRequest);
-
-string _token =$"Bearer {_authorizationResult?.Access_token ?? "no token"}";
-_httpPostRequest.Headers.Add("Authorization", _token);
-//_httpPostRequest.Headers.Add("Content-Type", "application/json");
-//_httpPostRequest.Headers.Add("Accept", "*/*");                        // not necessarily
-//_httpPostRequest.Headers.Add("Accept-Encoding", "gzip, deflate, br"); // not necessarily
-//_httpPostRequest.Headers.Add("Connection", "keep-alive");             // not necessarily
-//_httpPostRequest.Headers.Add("Host", "etimapi.etim-international.com");
-//_httpPostRequest.Headers.Add("Content-Length", "147");
-
-var _response = _httpClient.SendAsync(_httpPostRequest).Result;
-
-ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO? _result = null;
-
-if (_response.IsSuccessStatusCode)
-{
-    Console.WriteLine("Ok");
-    try
-    {
-        _result = _response.Content.ReadFromJsonAsync<ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO>().Result;
-    }
-    catch (NotSupportedException)
-    {
-        Console.WriteLine("Content type is not supported");
-    }
-    catch (JsonException)
-    {
-        Console.WriteLine("Invalid json");
-    }
+    Console.WriteLine("Authorization is failed.");
 }
 
-if (_result is not null)
+Console.WriteLine("Authorization step is ended.");
+Console.WriteLine();
+
+
+// STEP TWO - get data ======================================================
+Console.WriteLine("Data loading step is started.");
+
+
+
+if (_authorizationResult is not null)
 {
-    Console.WriteLine(_result.Total);
+    do
+    {
+
+        var _jsonRequest = new RequestAllFeatureWithMaximumDetailsAPIv2DTO()
+        {
+            From = _numberOfAlreadyLoadedFeatures,
+            Size = 1000,
+            Languagecode = "EN",
+            Deprecated = false,
+            Include = new Include
+            {
+                Descriptions = true,
+                Translations = false
+            }
+        };
+
+        var _httpPostRequest = new HttpRequestMessage(HttpMethod.Post, _featureUri)
+        {
+            Content = JsonContent.Create(_jsonRequest)
+        };
+
+        string _token = $"Bearer {_authorizationResult?.Access_token ?? "no token"}";
+        _httpPostRequest.Headers.Add("Authorization", _token);
+
+        HttpResponseMessage? _response = null;
+
+        try
+        {
+            _response = _httpClient.SendAsync(_httpPostRequest).Result;
+        }
+        catch (Exception e)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"Error! {e.Message}");
+            Console.WriteLine("Check internet connection and try again!");
+        }
+        finally
+        {
+            Console.ResetColor();
+        }
+
+        ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO? _result = null;
+
+        if (_response is not null && _response.IsSuccessStatusCode)
+        {
+            Console.WriteLine("Data was loaded successful.");
+            try
+            {
+                _result = _response.Content.ReadFromJsonAsync<ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO>().Result;
+            }
+            catch (NotSupportedException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Error! Content type is not supported.");
+            }
+            catch (JsonException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Error! Invalid json.");
+            }
+            catch (Exception e)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Error! {e.Message}");
+            }
+            finally
+            {
+                Console.ResetColor();
+            }
+        }
+        else
+        {
+            Console.WriteLine("Data loading is failed.");
+            break;
+        }
+
+        if (_result is not null)
+        {
+            _totalNumberOfFeatures = _result.Total;
+            _listOfAllFeatures.AddRange(_result.Features);
+            _numberOfAlreadyLoadedFeatures = _listOfAllFeatures.Count;
+        }
+        else
+        {
+            break;
+        }
+
+    }
+    while (_numberOfAlreadyLoadedFeatures < _totalNumberOfFeatures);
+
+    Console.WriteLine($"{_totalNumberOfFeatures}/{_numberOfAlreadyLoadedFeatures} - Features (total number / loaded).");
+}
+else
+{
+    Console.WriteLine("Data loading step skipped. Downloading is not possible without authorization!");
 }
 
+Console.WriteLine("Data loading step is ended.");
+Console.WriteLine();
 
-Console.WriteLine("end");
+
+// STEP THREE - save data to file ======================================================
+Console.WriteLine("Data in file saving step is started.");
+
+
+
+Console.WriteLine("The End");
 Console.ReadKey();
 
 
