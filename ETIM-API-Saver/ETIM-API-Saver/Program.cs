@@ -1,6 +1,7 @@
 ﻿using System.Net.Http.Json;
 using System.Net.Sockets;
 using System.Text.Json;
+using System.Xml.Serialization;
 using Common.DTO;
 using Common.DTO.Request;
 using Common.DTO.Result;
@@ -13,7 +14,7 @@ const string _authorizationUri = "https://etimauth.etim-international.com/connec
 const string _featureUri = "https://etimapi.etim-international.com/api/v2/Feature/Search";
 const string _valueUri = "https://etimapi.etim-international.com/api/v2/Value/Search";
 
-const string _directoryForFilesPath = @"./Generated files";
+const string _pathToFilesDirectory = @"./Generated files";
 
 string _authorization = "Basic c2llbWVuc191YTpYMGV5Y0hRWXFjUW9neU5GZ1ZRQ3lE";
 
@@ -55,14 +56,14 @@ finally
     Console.ResetColor();
 }
 
-ResultOfRequestAccessToken? _authorizationResult = null;
+ResultOfRequestAccessTokenDTO? _authorizationResult = null;
 
 if (_authorizationResponse is not null && _authorizationResponse.IsSuccessStatusCode)
 {
     Console.WriteLine("Authorization successful.");
     try
     {
-        _authorizationResult = _authorizationResponse.Content.ReadFromJsonAsync<ResultOfRequestAccessToken>().Result;
+        _authorizationResult = _authorizationResponse.Content.ReadFromJsonAsync<ResultOfRequestAccessTokenDTO>().Result;
     }
     catch (NotSupportedException)
     {
@@ -206,13 +207,46 @@ Console.WriteLine("Data in file saving step is started.");
 
 
 // If directory does not exist, create it
-if (!Directory.Exists(_directoryForFilesPath))
+if (!Directory.Exists(_pathToFilesDirectory))
 {
-    Directory.CreateDirectory(_directoryForFilesPath);
+    Directory.CreateDirectory(_pathToFilesDirectory);
 }
 
+var _xmlFileEntity = new EtimFeaturesAndValuesXmlFileEntity()
+{
+    Name = "ETIM Features and Values",
+    CreatedBy = "Me",
+    CreatedAt = DateTime.Now,
+    Description = "File with actual ETIM Features and Values for offline using.",
+    ContactInformation = "https://www.linkedin.com/in/oleksiiprykhodko",
+    NumberOfEtimFeatures = _listOfAllFeatures.Count,
+    EtimFeatures = _listOfAllFeatures.ToArray()
+};
 
+var _fileName = $"ETIM Features and Values {DateTime.Now.Day}.{DateTime.Now.Month}.{DateTime.Now.Year} {DateTime.Now.Hour}-{DateTime.Now.Minute}-{DateTime.Now.Second}.xml";
+var _pathToXmlFile = $"{_pathToFilesDirectory}/{_fileName}";
 
+var _xmlSerializer = new XmlSerializer(typeof(EtimFeaturesAndValuesXmlFileEntity));
+try
+{
+    using (var _streamWriter = new StreamWriter(_pathToXmlFile))
+    {
+        _xmlSerializer.Serialize(_streamWriter, _xmlFileEntity);
+    }
+    Console.WriteLine($"File '{_fileName}' was created.");
+}
+catch (Exception ex)
+{
+    Console.ForegroundColor = ConsoleColor.Red;
+    Console.WriteLine("Error! A problem occurred when creating a while file creating.");
+}
+finally
+{
+    Console.ResetColor();
+}
+
+Console.WriteLine("Data in file saving step is ended.");
+Console.WriteLine();
 
 Console.WriteLine("The End");
 Console.ReadKey();
