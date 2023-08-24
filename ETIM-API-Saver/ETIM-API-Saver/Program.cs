@@ -5,18 +5,20 @@ using System.Xml.Serialization;
 using Common.DTO;
 using Common.DTO.Request;
 using Common.DTO.Result;
+using static System.Net.Mime.MediaTypeNames;
 
 
 Console.WriteLine("\tHello, I am ETIM API Saver!");
 Console.WriteLine();
+
+const string _clientId = "siemens_ua";
+const string _clientSecret = "X0eycHQYqcQogyNFgVQCyD";
 
 const string _authorizationUri = "https://etimauth.etim-international.com/connect/token";
 const string _featureUri = "https://etimapi.etim-international.com/api/v2/Feature/Search";
 const string _valueUri = "https://etimapi.etim-international.com/api/v2/Value/Search";
 
 const string _pathToFilesDirectory = @"./Generated files";
-
-string _authorization = "Basic c2llbWVuc191YTpYMGV5Y0hRWXFjUW9neU5GZ1ZRQ3lE";
 
 string _token = "";
 
@@ -42,6 +44,9 @@ HttpRequestMessage _httpPostAuthorizationRequest = new HttpRequestMessage(HttpMe
         new KeyValuePair<string, string>("scope", "EtimApi")
     })
 };
+
+
+var _authorization = CreateAuthorizationString(_clientId, _clientSecret);
 
 _httpPostAuthorizationRequest.Headers.Add("Authorization", _authorization);
 
@@ -364,8 +369,12 @@ Console.ReadKey();
 
 
 
-
-
+static string CreateAuthorizationString(string clientId, string clientSecret)
+{
+    var textBytes = System.Text.Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}");
+    var textBytesAsString = System.Convert.ToBase64String(textBytes);
+    return $"Basic {textBytesAsString}";
+}
 
 
 
