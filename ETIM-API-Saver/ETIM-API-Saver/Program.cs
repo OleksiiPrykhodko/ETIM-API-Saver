@@ -2,13 +2,14 @@
 using System.Net.Sockets;
 using System.Text.Json;
 using System.Xml.Serialization;
+using BLL.Services;
 using Common.DTO;
 using Common.DTO.Request;
 using Common.DTO.Result;
 using static System.Net.Mime.MediaTypeNames;
 
 
-Console.WriteLine("\tHello, I am ETIM API Saver!");
+Console.WriteLine("Hello, I am ETIM API Saver!");
 Console.WriteLine();
 
 const string _clientId = "siemens_ua";
@@ -24,6 +25,8 @@ string _token = "";
 
 HttpClient _httpClient = new HttpClient();
 
+ApiRequestService _apiService = new ApiRequestService(_httpClient);
+
 var _listOfAllFeatures = new List<Feature>();
 var _listofAllValues = new List<Value>();
 
@@ -34,7 +37,7 @@ int _numberOfAlreadyLoadedFeatures = 0;
 int _numberOfAlreadyLoadedValues = 0;
 
 // STEP ONE - get access token ======================================================
-Console.WriteLine("\tAuthorization step is started.");
+Console.WriteLine("Authorization step is started.");
 
 HttpRequestMessage _httpPostAuthorizationRequest = new HttpRequestMessage(HttpMethod.Post, _authorizationUri)
 {
@@ -59,8 +62,8 @@ try
 catch (Exception e)
 {
     Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine($"Error! {e.Message}");
-    Console.WriteLine("Check internet connection and try again!");
+    Console.WriteLine($"\tError! {e.Message}");
+    Console.WriteLine("\tCheck internet connection and try again!");
 }
 finally
 {
@@ -71,7 +74,7 @@ ResultOfRequestAccessTokenDTO? _authorizationResult = null;
 
 if (_authorizationResponse is not null && _authorizationResponse.IsSuccessStatusCode)
 {
-    Console.WriteLine("Authorization successful.");
+    Console.WriteLine("\tAuthorization successful.");
     try
     {
         _authorizationResult = _authorizationResponse.Content.ReadFromJsonAsync<ResultOfRequestAccessTokenDTO>().Result;
@@ -80,17 +83,17 @@ if (_authorizationResponse is not null && _authorizationResponse.IsSuccessStatus
     catch (NotSupportedException)
     {
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine("Error! Content type is not supported.");
+        Console.WriteLine("\tError! Content type is not supported.");
     }
     catch (JsonException)
     {
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine("Error! Invalid json.");
+        Console.WriteLine("\tError! Invalid json.");
     }
     catch (Exception e)
     {
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"Error! {e.Message}");
+        Console.WriteLine($"\tError! {e.Message}");
     }
     finally
     {
@@ -99,15 +102,15 @@ if (_authorizationResponse is not null && _authorizationResponse.IsSuccessStatus
 }
 else
 {
-    Console.WriteLine("Authorization is failed.");
+    Console.WriteLine("\tAuthorization is failed.");
 }
 
-Console.WriteLine("\tAuthorization step is ended.");
+Console.WriteLine("Authorization step is ended.");
 Console.WriteLine();
 
 
 // STEP TWO - get Features ======================================================
-Console.WriteLine("\tLoading of Features step is started.");
+Console.WriteLine("Loading of Features step is started.");
 
 if (_authorizationResult is not null)
 {
@@ -127,92 +130,72 @@ if (_authorizationResult is not null)
             }
         };
 
-        var _httpPostRequest = new HttpRequestMessage(HttpMethod.Post, _featureUri)
-        {
-            Content = JsonContent.Create(_jsonRequest)
-        };
-
-        _httpPostRequest.Headers.Add("Authorization", _token);
-
-        HttpResponseMessage? _response = null;
+        ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO _loadedFeatures =
+            new ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO()
+            {
+                Total = 0,
+                Features = new Feature[0]
+            };
 
         try
         {
-            _response = _httpClient.SendAsync(_httpPostRequest).Result;
-        }
-        catch (Exception e)
-        {
+            _loadedFeatures = _apiService.GetFeatures(_jsonRequest, _token);
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"Error! {e.Message}");
-            Console.WriteLine("Check internet connection and try again!");
+        }
+        catch (AggregateException ex)
+        {
+            Console.WriteLine($"\tError! {ex.Message}");
+            Console.WriteLine("\tCheck internet connection and try again!");
+        }
+        catch (NotSupportedException ex)
+        {
+            Console.WriteLine($"\tError! {ex.Message}");
+            Console.WriteLine("\tError! Content type is not supported.");
+        }
+        catch (JsonException ex)
+        {
+            Console.WriteLine($"\tError! {ex.Message}");
+            Console.WriteLine("\tError! Invalid json.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"\tError! {ex.Message}");
         }
         finally
         {
             Console.ResetColor();
         }
 
-        ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO? _result = null;
-
-        if (_response is not null && _response.IsSuccessStatusCode)
+        if (_loadedFeatures.Features.Length > 0)
         {
-            Console.WriteLine("Data was loaded successful.");
-            try
-            {
-                _result = _response.Content.ReadFromJsonAsync<ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO>().Result;
-            }
-            catch (NotSupportedException)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Error! Content type is not supported.");
-            }
-            catch (JsonException)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Error! Invalid json.");
-            }
-            catch (Exception e)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Error! {e.Message}");
-            }
-            finally
-            {
-                Console.ResetColor();
-            }
-        }
-        else
-        {
-            Console.WriteLine("Data loading is failed.");
-            break;
-        }
-
-        if (_result is not null)
-        {
-            _totalNumberOfFeatures = _result.Total;
-            _listOfAllFeatures.AddRange(_result.Features);
+            _totalNumberOfFeatures = _loadedFeatures.Total;
+            _listOfAllFeatures.AddRange(_loadedFeatures.Features);
             _numberOfAlreadyLoadedFeatures = _listOfAllFeatures.Count;
+
+            Console.WriteLine($"\t{_numberOfAlreadyLoadedFeatures} Features was loaded successful.");
         }
-        else
+        else 
         {
-            break;
+            Console.WriteLine("\tFeatures loading is failed.");
+            break; 
         }
 
     }
     while (_numberOfAlreadyLoadedFeatures < _totalNumberOfFeatures);
 
-    Console.WriteLine($"{_totalNumberOfFeatures}/{_numberOfAlreadyLoadedFeatures} - Features (total number / loaded).");
+    Console.WriteLine($"\t{_totalNumberOfFeatures}/{_numberOfAlreadyLoadedFeatures} - Features (total number / loaded).");
 }
 else
 {
-    Console.WriteLine("Features loading step skipped. Downloading is not possible without authorization!");
+    Console.WriteLine("\tFeatures loading step skipped. Downloading is not possible without authorization!");
 }
 
-Console.WriteLine("\tFeatures loading step is ended.");
+Console.WriteLine("Features loading step is ended.");
 Console.WriteLine();
 
 
 // STEP THREE - get Values ======================================================
-Console.WriteLine("\tLoading of Values step is started.");
+Console.WriteLine("Loading of Values step is started.");
 
 if (_authorizationResult is not null)
 {
@@ -248,8 +231,8 @@ if (_authorizationResult is not null)
         catch (Exception e)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"Error! {e.Message}");
-            Console.WriteLine("Check internet connection and try again!");
+            Console.WriteLine($"\tError! {e.Message}");
+            Console.WriteLine("\tCheck internet connection and try again!");
         }
         finally
         {
@@ -260,7 +243,7 @@ if (_authorizationResult is not null)
 
         if (_response is not null && _response.IsSuccessStatusCode)
         {
-            Console.WriteLine("Data was loaded successful.");
+            Console.WriteLine("\tData was loaded successful.");
             try
             {
                 _result = _response.Content.ReadFromJsonAsync<ResultOfRequestAllValuesWithMaximumDetailsAPIv2DTO>().Result;
@@ -268,17 +251,17 @@ if (_authorizationResult is not null)
             catch (NotSupportedException)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Error! Content type is not supported.");
+                Console.WriteLine("\tError! Content type is not supported.");
             }
             catch (JsonException)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Error! Invalid json.");
+                Console.WriteLine("\tError! Invalid json.");
             }
             catch (Exception e)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Error! {e.Message}");
+                Console.WriteLine($"\tError! {e.Message}");
             }
             finally
             {
@@ -287,7 +270,7 @@ if (_authorizationResult is not null)
         }
         else
         {
-            Console.WriteLine("Data loading is failed.");
+            Console.WriteLine("\tData loading is failed.");
             break;
         }
 
@@ -305,19 +288,19 @@ if (_authorizationResult is not null)
     }
     while (_numberOfAlreadyLoadedValues < _totalNumberOfValues);
 
-    Console.WriteLine($"{_totalNumberOfValues}/{_numberOfAlreadyLoadedValues} - Values (total number / loaded).");
+    Console.WriteLine($"\t{_totalNumberOfValues}/{_numberOfAlreadyLoadedValues} - Values (total number / loaded).");
 }
 else
 {
-    Console.WriteLine("Values loading step skipped. Downloading is not possible without authorization!");
+    Console.WriteLine("\tValues loading step skipped. Downloading is not possible without authorization!");
 }
 
-Console.WriteLine("\tValues loading step is ended.");
+Console.WriteLine("Values loading step is ended.");
 Console.WriteLine();
 
 
 // STEP FOUR - save data to file ======================================================
-Console.WriteLine("\tData in file saving step is started.");
+Console.WriteLine("Data in file saving step is started.");
 
 // If directory does not exist, create it
 if (!Directory.Exists(_pathToFilesDirectory))
@@ -348,22 +331,22 @@ try
     {
         _xmlSerializer.Serialize(_streamWriter, _xmlFileEntity);
     }
-    Console.WriteLine($"File '{_fileName}' was created.");
+    Console.WriteLine($"\tFile '{_fileName}' was created.");
 }
 catch (Exception ex)
 {
     Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine("Error! A problem occurred when creating a while file creating.");
+    Console.WriteLine("\tError! A problem occurred when creating a while file creating.");
 }
 finally
 {
     Console.ResetColor();
 }
 
-Console.WriteLine("\tData in file saving step is ended.");
+Console.WriteLine("Data in file saving step is ended.");
 Console.WriteLine();
 
-Console.WriteLine("\tThe End");
+Console.WriteLine("The End");
 Console.ReadKey();
 
 
