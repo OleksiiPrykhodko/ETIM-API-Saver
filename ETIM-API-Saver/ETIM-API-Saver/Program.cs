@@ -16,7 +16,7 @@ const string _clientId = "siemens_ua";
 const string _clientSecret = "X0eycHQYqcQogyNFgVQCyD";
 
 const string _authorizationUri = "https://etimauth.etim-international.com/connect/token";
-const string _featureUri = "https://etimapi.etim-international.com/api/v2/Feature/Search";
+
 const string _valueUri = "https://etimapi.etim-international.com/api/v2/Value/Search";
 
 const string _pathToFilesDirectory = @"./Generated files";
@@ -25,7 +25,7 @@ string _token = "";
 
 HttpClient _httpClient = new HttpClient();
 
-ApiRequestService _apiService = new ApiRequestService(_httpClient);
+ApiRequestService _apiService;
 
 var _listOfAllFeatures = new List<Feature>();
 var _listofAllValues = new List<Value>();
@@ -57,7 +57,7 @@ HttpResponseMessage? _authorizationResponse = null;
 
 try
 {
-   _authorizationResponse = _httpClient.SendAsync(_httpPostAuthorizationRequest).Result;
+    _authorizationResponse = _httpClient.SendAsync(_httpPostAuthorizationRequest).Result;
 }
 catch (Exception e)
 {
@@ -108,6 +108,7 @@ else
 Console.WriteLine("Authorization step is ended.");
 Console.WriteLine();
 
+_apiService = new ApiRequestService(_httpClient, _token);
 
 // STEP TWO - get Features ======================================================
 Console.WriteLine("Loading of Features step is started.");
@@ -139,7 +140,7 @@ if (_authorizationResult is not null)
 
         try
         {
-            _loadedFeatures = _apiService.GetFeatures(_jsonRequest, _token);
+            _loadedFeatures = _apiService.GetFeatures(_jsonRequest);
             Console.ForegroundColor = ConsoleColor.Red;
         }
         catch (AggregateException ex)
@@ -174,10 +175,10 @@ if (_authorizationResult is not null)
 
             Console.WriteLine($"\t{_numberOfAlreadyLoadedFeatures} Features was loaded successful.");
         }
-        else 
+        else
         {
             Console.WriteLine("\tFeatures loading is failed.");
-            break; 
+            break;
         }
 
     }
@@ -215,76 +216,54 @@ if (_authorizationResult is not null)
             }
         };
 
-        var _httpPostRequest = new HttpRequestMessage(HttpMethod.Post, _valueUri)
+        var _loadedValues = new ResultOfRequestAllValuesWithMaximumDetailsAPIv2DTO()
         {
-            Content = JsonContent.Create(_jsonRequest)
+            Total = 0,
+            Values = new Value[0]
         };
-
-        _httpPostRequest.Headers.Add("Authorization", _token);
-
-        HttpResponseMessage? _response = null;
 
         try
         {
-            _response = _httpClient.SendAsync(_httpPostRequest).Result;
-        }
-        catch (Exception e)
-        {
+            _loadedValues = _apiService.GetValues(_jsonRequest);
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"\tError! {e.Message}");
+        }
+        catch (AggregateException ex)
+        {
+            Console.WriteLine($"\tError! {ex.Message}");
             Console.WriteLine("\tCheck internet connection and try again!");
+        }
+        catch (NotSupportedException ex)
+        {
+            Console.WriteLine($"\tError! {ex.Message}");
+            Console.WriteLine("\tError! Content type is not supported.");
+        }
+        catch (JsonException ex)
+        {
+            Console.WriteLine($"\tError! {ex.Message}");
+            Console.WriteLine("\tError! Invalid json.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"\tError! {ex.Message}");
         }
         finally
         {
             Console.ResetColor();
         }
 
-        ResultOfRequestAllValuesWithMaximumDetailsAPIv2DTO? _result = null;
-
-        if (_response is not null && _response.IsSuccessStatusCode)
+        if (_loadedValues.Values.Length > 0)
         {
-            Console.WriteLine("\tData was loaded successful.");
-            try
-            {
-                _result = _response.Content.ReadFromJsonAsync<ResultOfRequestAllValuesWithMaximumDetailsAPIv2DTO>().Result;
-            }
-            catch (NotSupportedException)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("\tError! Content type is not supported.");
-            }
-            catch (JsonException)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("\tError! Invalid json.");
-            }
-            catch (Exception e)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"\tError! {e.Message}");
-            }
-            finally
-            {
-                Console.ResetColor();
-            }
-        }
-        else
-        {
-            Console.WriteLine("\tData loading is failed.");
-            break;
-        }
-
-        if (_result is not null)
-        {
-            _totalNumberOfValues = _result.Total;
-            _listofAllValues.AddRange(_result.Values);
+            _totalNumberOfValues = _loadedValues.Total;
+            _listofAllValues.AddRange(_loadedValues.Values);
             _numberOfAlreadyLoadedValues = _listofAllValues.Count;
+
+            Console.WriteLine($"\t{_numberOfAlreadyLoadedValues} Values was loaded successful.");
         }
         else
         {
+            Console.WriteLine("\tValues loading is failed.");
             break;
         }
-
     }
     while (_numberOfAlreadyLoadedValues < _totalNumberOfValues);
 
@@ -311,7 +290,7 @@ if (!Directory.Exists(_pathToFilesDirectory))
 var _xmlFileEntity = new EtimFeaturesAndValuesXmlFileEntity()
 {
     Name = "ETIM Features and Values",
-    CreatedBy = "Me",
+    CreatedBy = _clientId,
     CreatedAt = DateTime.Now,
     Description = "File with actual ETIM Features and Values for offline using.",
     ContactInformation = "https://www.linkedin.com/in/oleksiiprykhodko",
