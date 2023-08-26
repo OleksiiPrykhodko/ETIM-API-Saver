@@ -9,22 +9,20 @@ using Common.DTO.Result;
 using static System.Net.Mime.MediaTypeNames;
 
 
-Console.WriteLine("Hello, I am ETIM API Saver!");
+Console.Title = "ETIM API Saver";
+
 Console.WriteLine();
 
-const string _clientId = "siemens_ua";
-const string _clientSecret = "X0eycHQYqcQogyNFgVQCyD";
-
-const string _authorizationUri = "https://etimauth.etim-international.com/connect/token";
-
-const string _valueUri = "https://etimapi.etim-international.com/api/v2/Value/Search";
+string _clientId = string.Empty;
+string _clientSecret = string.Empty;
 
 const string _pathToFilesDirectory = @"./Generated files";
 
-string _token = "";
+string _accessToken = string.Empty;
 
 HttpClient _httpClient = new HttpClient();
 
+ApiAuthorizationService _apiAuthorizationService = new ApiAuthorizationService(_httpClient);
 ApiRequestService _apiService;
 
 var _listOfAllFeatures = new List<Feature>();
@@ -37,159 +35,143 @@ int _numberOfAlreadyLoadedFeatures = 0;
 int _numberOfAlreadyLoadedValues = 0;
 
 // STEP ONE - get access token ======================================================
-Console.WriteLine("Authorization step is started.");
 
-HttpRequestMessage _httpPostAuthorizationRequest = new HttpRequestMessage(HttpMethod.Post, _authorizationUri)
+while (_accessToken == string.Empty)
 {
-    Content = new FormUrlEncodedContent(new KeyValuePair<string, string>[]
-    {
-        new KeyValuePair<string, string>("grant_type", "client_credentials"),
-        new KeyValuePair<string, string>("scope", "EtimApi")
-    })
-};
+    Console.WriteLine("\n\tAuthorization\n");
 
+    Console.WriteLine("\t\tEnter your credentials\n");
+    Console.Write("\t\tclient_id: ");
+    _clientId = Console.ReadLine() ?? "";
+    Console.WriteLine();
+    Console.Write("\t\tclient_secret: ");
+    _clientSecret = Console.ReadLine() ?? "";
+    Console.WriteLine();
 
-var _authorization = CreateAuthorizationString(_clientId, _clientSecret);
-
-_httpPostAuthorizationRequest.Headers.Add("Authorization", _authorization);
-
-HttpResponseMessage? _authorizationResponse = null;
-
-try
-{
-    _authorizationResponse = _httpClient.SendAsync(_httpPostAuthorizationRequest).Result;
-}
-catch (Exception e)
-{
-    Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine($"\tError! {e.Message}");
-    Console.WriteLine("\tCheck internet connection and try again!");
-}
-finally
-{
-    Console.ResetColor();
-}
-
-ResultOfRequestAccessTokenDTO? _authorizationResult = null;
-
-if (_authorizationResponse is not null && _authorizationResponse.IsSuccessStatusCode)
-{
-    Console.WriteLine("\tAuthorization successful.");
     try
     {
-        _authorizationResult = _authorizationResponse.Content.ReadFromJsonAsync<ResultOfRequestAccessTokenDTO>().Result;
-        _token = $"Bearer {_authorizationResult?.Access_token ?? "no token"}";
+        _accessToken = _apiAuthorizationService.GetAuthorizationToken(_clientId, _clientSecret);
     }
-    catch (NotSupportedException)
+    catch (AggregateException ex)
     {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine("\tError! Content type is not supported.");
+        Console.WriteLine($"\t\tError! {ex.Message}");
+        Console.WriteLine("\t\tCheck internet connection and try again!");
     }
-    catch (JsonException)
+    catch (NotSupportedException ex)
     {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine("\tError! Invalid json.");
+        Console.WriteLine($"\t\tError! {ex.Message}");
+        Console.WriteLine("\t\tError! Content type is not supported.");
     }
-    catch (Exception e)
+    catch (JsonException ex)
     {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"\tError! {e.Message}");
+        Console.WriteLine($"\t\tError! {ex.Message}");
+        Console.WriteLine("\t\tError! Invalid json.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"\t\tError! {ex.Message}");
     }
     finally
     {
         Console.ResetColor();
     }
-}
-else
-{
-    Console.WriteLine("\tAuthorization is failed.");
+
+    if (_accessToken != string.Empty)
+    {
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("\tAuthorization successful");
+        Console.ResetColor();
+    }
+    else
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("\tAuthorization is failed. Wrong ID or Password.");
+        Console.ResetColor();
+        Thread.Sleep(3000);
+        Console.Clear();
+    }
 }
 
-Console.WriteLine("Authorization step is ended.");
-Console.WriteLine();
+Console.WriteLine("\n\tAuthorization step is ended.");
+Thread.Sleep(3000);
+Console.Clear();
 
-_apiService = new ApiRequestService(_httpClient, _token);
+_apiService = new ApiRequestService(_httpClient, _accessToken);
 
 // STEP TWO - get Features ======================================================
+Console.WriteLine();
 Console.WriteLine("Loading of Features step is started.");
 
-if (_authorizationResult is not null)
+do
 {
-    do
-    {
 
-        var _jsonRequest = new RequestAllFeatureWithMaximumDetailsAPIv2DTO()
+    var _jsonRequest = new RequestAllFeatureWithMaximumDetailsAPIv2DTO()
+    {
+        From = _numberOfAlreadyLoadedFeatures,
+        Size = 1000,
+        Languagecode = "EN",
+        Deprecated = false,
+        Include = new Include
         {
-            From = _numberOfAlreadyLoadedFeatures,
-            Size = 1000,
-            Languagecode = "EN",
-            Deprecated = false,
-            Include = new Include
-            {
-                Descriptions = true,
-                Translations = false
-            }
+            Descriptions = true,
+            Translations = false
+        }
+    };
+
+    ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO _loadedFeatures =
+        new ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO()
+        {
+            Total = 0,
+            Features = new Feature[0]
         };
 
-        ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO _loadedFeatures =
-            new ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO()
-            {
-                Total = 0,
-                Features = new Feature[0]
-            };
-
-        try
-        {
-            _loadedFeatures = _apiService.GetFeatures(_jsonRequest);
-            Console.ForegroundColor = ConsoleColor.Red;
-        }
-        catch (AggregateException ex)
-        {
-            Console.WriteLine($"\tError! {ex.Message}");
-            Console.WriteLine("\tCheck internet connection and try again!");
-        }
-        catch (NotSupportedException ex)
-        {
-            Console.WriteLine($"\tError! {ex.Message}");
-            Console.WriteLine("\tError! Content type is not supported.");
-        }
-        catch (JsonException ex)
-        {
-            Console.WriteLine($"\tError! {ex.Message}");
-            Console.WriteLine("\tError! Invalid json.");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"\tError! {ex.Message}");
-        }
-        finally
-        {
-            Console.ResetColor();
-        }
-
-        if (_loadedFeatures.Features.Length > 0)
-        {
-            _totalNumberOfFeatures = _loadedFeatures.Total;
-            _listOfAllFeatures.AddRange(_loadedFeatures.Features);
-            _numberOfAlreadyLoadedFeatures = _listOfAllFeatures.Count;
-
-            Console.WriteLine($"\t{_numberOfAlreadyLoadedFeatures} Features was loaded successful.");
-        }
-        else
-        {
-            Console.WriteLine("\tFeatures loading is failed.");
-            break;
-        }
-
+    try
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        _loadedFeatures = _apiService.GetFeatures(_jsonRequest);
     }
-    while (_numberOfAlreadyLoadedFeatures < _totalNumberOfFeatures);
+    catch (AggregateException ex)
+    {
+        Console.WriteLine($"\tError! {ex.Message}");
+        Console.WriteLine("\tCheck internet connection and try again!");
+    }
+    catch (NotSupportedException ex)
+    {
+        Console.WriteLine($"\tError! {ex.Message}");
+        Console.WriteLine("\tError! Content type is not supported.");
+    }
+    catch (JsonException ex)
+    {
+        Console.WriteLine($"\tError! {ex.Message}");
+        Console.WriteLine("\tError! Invalid json.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"\tError! {ex.Message}");
+    }
+    finally
+    {
+        Console.ResetColor();
+    }
 
-    Console.WriteLine($"\t{_totalNumberOfFeatures}/{_numberOfAlreadyLoadedFeatures} - Features (total number / loaded).");
+    if (_loadedFeatures.Features.Length > 0)
+    {
+        _totalNumberOfFeatures = _loadedFeatures.Total;
+        _listOfAllFeatures.AddRange(_loadedFeatures.Features);
+        _numberOfAlreadyLoadedFeatures = _listOfAllFeatures.Count;
+
+        Console.WriteLine($"\t{_numberOfAlreadyLoadedFeatures} Features was loaded successful.");
+    }
+    else
+    {
+        Console.WriteLine("\tFeatures loading is failed.");
+        break;
+    }
+
 }
-else
-{
-    Console.WriteLine("\tFeatures loading step skipped. Downloading is not possible without authorization!");
-}
+while (_numberOfAlreadyLoadedFeatures < _totalNumberOfFeatures);
+
+Console.WriteLine($"\t{_totalNumberOfFeatures}/{_numberOfAlreadyLoadedFeatures} - Features (total number / loaded).");
 
 Console.WriteLine("Features loading step is ended.");
 Console.WriteLine();
@@ -198,94 +180,88 @@ Console.WriteLine();
 // STEP THREE - get Values ======================================================
 Console.WriteLine("Loading of Values step is started.");
 
-if (_authorizationResult is not null)
+do
 {
-    do
+
+    var _jsonRequest = new RequestAllValuesWithMaximumDetailsAPIv2DTO()
     {
+        From = _numberOfAlreadyLoadedValues,
+        Size = 1000,
+        Languagecode = "EN",
+        Deprecated = false,
+        Include = new Include
+        {
+            Descriptions = true,
+            Translations = false
+        }
+    };
 
-        var _jsonRequest = new RequestAllValuesWithMaximumDetailsAPIv2DTO()
-        {
-            From = _numberOfAlreadyLoadedValues,
-            Size = 1000,
-            Languagecode = "EN",
-            Deprecated = false,
-            Include = new Include
-            {
-                Descriptions = true,
-                Translations = false
-            }
-        };
+    var _loadedValues = new ResultOfRequestAllValuesWithMaximumDetailsAPIv2DTO()
+    {
+        Total = 0,
+        Values = new Value[0]
+    };
 
-        var _loadedValues = new ResultOfRequestAllValuesWithMaximumDetailsAPIv2DTO()
-        {
-            Total = 0,
-            Values = new Value[0]
-        };
-
-        try
-        {
-            _loadedValues = _apiService.GetValues(_jsonRequest);
-            Console.ForegroundColor = ConsoleColor.Red;
-        }
-        catch (AggregateException ex)
-        {
-            Console.WriteLine($"\tError! {ex.Message}");
-            Console.WriteLine("\tCheck internet connection and try again!");
-        }
-        catch (NotSupportedException ex)
-        {
-            Console.WriteLine($"\tError! {ex.Message}");
-            Console.WriteLine("\tError! Content type is not supported.");
-        }
-        catch (JsonException ex)
-        {
-            Console.WriteLine($"\tError! {ex.Message}");
-            Console.WriteLine("\tError! Invalid json.");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"\tError! {ex.Message}");
-        }
-        finally
-        {
-            Console.ResetColor();
-        }
-
-        if (_loadedValues.Values.Length > 0)
-        {
-            _totalNumberOfValues = _loadedValues.Total;
-            _listofAllValues.AddRange(_loadedValues.Values);
-            _numberOfAlreadyLoadedValues = _listofAllValues.Count;
-
-            Console.WriteLine($"\t{_numberOfAlreadyLoadedValues} Values was loaded successful.");
-        }
-        else
-        {
-            Console.WriteLine("\tValues loading is failed.");
-            break;
-        }
+    try
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        _loadedValues = _apiService.GetValues(_jsonRequest);
     }
-    while (_numberOfAlreadyLoadedValues < _totalNumberOfValues);
+    catch (AggregateException ex)
+    {
+        Console.WriteLine($"\tError! {ex.Message}");
+        Console.WriteLine("\tCheck internet connection and try again!");
+    }
+    catch (NotSupportedException ex)
+    {
+        Console.WriteLine($"\tError! {ex.Message}");
+        Console.WriteLine("\tError! Content type is not supported.");
+    }
+    catch (JsonException ex)
+    {
+        Console.WriteLine($"\tError! {ex.Message}");
+        Console.WriteLine("\tError! Invalid json.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"\tError! {ex.Message}");
+    }
+    finally
+    {
+        Console.ResetColor();
+    }
 
-    Console.WriteLine($"\t{_totalNumberOfValues}/{_numberOfAlreadyLoadedValues} - Values (total number / loaded).");
+    if (_loadedValues.Values.Length > 0)
+    {
+        _totalNumberOfValues = _loadedValues.Total;
+        _listofAllValues.AddRange(_loadedValues.Values);
+        _numberOfAlreadyLoadedValues = _listofAllValues.Count;
+
+        Console.WriteLine($"\t{_numberOfAlreadyLoadedValues} Values was loaded successful.");
+    }
+    else
+    {
+        Console.WriteLine("\tValues loading is failed.");
+        break;
+    }
 }
-else
-{
-    Console.WriteLine("\tValues loading step skipped. Downloading is not possible without authorization!");
-}
+while (_numberOfAlreadyLoadedValues < _totalNumberOfValues);
+
+Console.WriteLine($"\t{_totalNumberOfValues}/{_numberOfAlreadyLoadedValues} - Values (total number / loaded).");
 
 Console.WriteLine("Values loading step is ended.");
 Console.WriteLine();
 
 
 // STEP FOUR - save data to file ======================================================
-Console.WriteLine("Data in file saving step is started.");
+Console.WriteLine("Saving data in file step is started.");
 
 // If directory does not exist, create it
 if (!Directory.Exists(_pathToFilesDirectory))
 {
     Directory.CreateDirectory(_pathToFilesDirectory);
 }
+
 
 var _xmlFileEntity = new EtimFeaturesAndValuesXmlFileEntity()
 {
