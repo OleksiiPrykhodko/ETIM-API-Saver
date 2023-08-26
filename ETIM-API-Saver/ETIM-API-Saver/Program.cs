@@ -42,10 +42,10 @@ while (_accessToken == string.Empty)
 
     Console.WriteLine("\t\tEnter your credentials\n");
     Console.Write("\t\tclient_id: ");
-    _clientId = Console.ReadLine() ?? "";
+    _clientId = Console.ReadLine() ?? string.Empty;
     Console.WriteLine();
     Console.Write("\t\tclient_secret: ");
-    _clientSecret = Console.ReadLine() ?? "";
+    _clientSecret = Console.ReadLine() ?? string.Empty;
     Console.WriteLine();
 
     try
@@ -254,7 +254,7 @@ Console.WriteLine();
 
 
 // STEP FOUR - save data to file ======================================================
-Console.WriteLine("Saving data in file step is started.");
+Console.WriteLine("Step of saving data to a file is started.");
 
 // If directory does not exist, create it
 if (!Directory.Exists(_pathToFilesDirectory))
@@ -262,41 +262,53 @@ if (!Directory.Exists(_pathToFilesDirectory))
     Directory.CreateDirectory(_pathToFilesDirectory);
 }
 
-
-var _xmlFileEntity = new EtimFeaturesAndValuesXmlFileEntity()
+if (_totalNumberOfFeatures != 0 && 
+    _totalNumberOfValues != 0 &&
+    _totalNumberOfFeatures == _numberOfAlreadyLoadedFeatures &&
+    _totalNumberOfValues == _numberOfAlreadyLoadedValues)
 {
-    Name = "ETIM Features and Values",
-    CreatedBy = _clientId,
-    CreatedAt = DateTime.Now,
-    Description = "File with actual ETIM Features and Values for offline using.",
-    ContactInformation = "https://www.linkedin.com/in/oleksiiprykhodko",
-    NumberOfEtimFeatures = _listOfAllFeatures.Count,
-    NumberOfEtimValues = _listofAllValues.Count,
-    EtimFeatures = _listOfAllFeatures.ToArray(),
-    EtimValues = _listofAllValues.ToArray()
-};
-
-var _fileName = $"ETIM Features and Values {DateTime.Now.Year}.{DateTime.Now.Month}.{DateTime.Now.Day} {DateTime.Now.Hour}-{DateTime.Now.Minute}-{DateTime.Now.Second}.xml";
-var _pathToXmlFile = $"{_pathToFilesDirectory}/{_fileName}";
-
-var _xmlSerializer = new XmlSerializer(typeof(EtimFeaturesAndValuesXmlFileEntity));
-try
-{
-    using (var _streamWriter = new StreamWriter(_pathToXmlFile))
+    var _xmlFileEntity = new EtimFeaturesAndValuesXmlFileEntity()
     {
-        _xmlSerializer.Serialize(_streamWriter, _xmlFileEntity);
+        Name = "ETIM Features and Values",
+        CreatedBy = _clientId,
+        CreatedAt = DateTime.Now,
+        Description = "File with actual ETIM Features and Values for offline using.",
+        ContactInformation = "https://www.linkedin.com/in/oleksiiprykhodko",
+        NumberOfEtimFeatures = _listOfAllFeatures.Count,
+        NumberOfEtimValues = _listofAllValues.Count,
+        EtimFeatures = _listOfAllFeatures.ToArray(),
+        EtimValues = _listofAllValues.ToArray()
+    };
+
+    var _fileName = $"ETIM Features and Values {DateTime.Now.Year}.{DateTime.Now.Month}.{DateTime.Now.Day} {DateTime.Now.Hour}-{DateTime.Now.Minute}-{DateTime.Now.Second}.xml";
+    var _pathToXmlFile = $"{_pathToFilesDirectory}/{_fileName}";
+
+    var _xmlSerializer = new XmlSerializer(typeof(EtimFeaturesAndValuesXmlFileEntity));
+    try
+    {
+        using (var _streamWriter = new StreamWriter(_pathToXmlFile))
+        {
+            _xmlSerializer.Serialize(_streamWriter, _xmlFileEntity);
+        }
+        Console.WriteLine($"\tFile '{_fileName}' was created.");
     }
-    Console.WriteLine($"\tFile '{_fileName}' was created.");
+    catch (Exception ex)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("\tError! A problem occurred when creating a while file creating.");
+    }
+    finally
+    {
+        Console.ResetColor();
+    }
 }
-catch (Exception ex)
+else
 {
     Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine("\tError! A problem occurred when creating a while file creating.");
-}
-finally
-{
+    Console.WriteLine("Step of saving data to a file was skipped! Not all data was loaded from server.");
     Console.ResetColor();
 }
+
 
 Console.WriteLine("Data in file saving step is ended.");
 Console.WriteLine();
