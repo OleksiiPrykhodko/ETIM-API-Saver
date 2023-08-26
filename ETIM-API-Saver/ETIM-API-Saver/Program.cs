@@ -8,10 +8,7 @@ using Common.DTO.Request;
 using Common.DTO.Result;
 using static System.Net.Mime.MediaTypeNames;
 
-
 Console.Title = "ETIM API Saver";
-
-Console.WriteLine();
 
 string _clientId = string.Empty;
 string _clientSecret = string.Empty;
@@ -34,17 +31,24 @@ int _totalNumberOfValues = 0;
 int _numberOfAlreadyLoadedFeatures = 0;
 int _numberOfAlreadyLoadedValues = 0;
 
+bool _successfulResult = false;
+
 // STEP ONE - get access token ======================================================
+
+Console.WriteLine();
 
 while (_accessToken == string.Empty)
 {
-    Console.WriteLine("\n\tAuthorization\n");
+    Console.BackgroundColor = ConsoleColor.Gray;
+    Console.ForegroundColor = ConsoleColor.Black;
+    Console.WriteLine("\n Authorization \n");
+    Console.ResetColor();
 
-    Console.WriteLine("\t\tEnter your credentials\n");
-    Console.Write("\t\tclient_id: ");
+    Console.WriteLine("\tEnter your credentials\n");
+    Console.Write("\tclient_id: ");
     _clientId = Console.ReadLine() ?? string.Empty;
     Console.WriteLine();
-    Console.Write("\t\tclient_secret: ");
+    Console.Write("\tclient_secret: ");
     _clientSecret = Console.ReadLine() ?? string.Empty;
     Console.WriteLine();
 
@@ -54,18 +58,18 @@ while (_accessToken == string.Empty)
     }
     catch (AggregateException ex)
     {
-        Console.WriteLine($"\t\tError! {ex.Message}");
-        Console.WriteLine("\t\tCheck internet connection and try again!");
+        Console.WriteLine($"\tError! {ex.Message}");
+        Console.WriteLine("\tCheck internet connection and try again!");
     }
     catch (NotSupportedException ex)
     {
-        Console.WriteLine($"\t\tError! {ex.Message}");
-        Console.WriteLine("\t\tError! Content type is not supported.");
+        Console.WriteLine($"\tError! {ex.Message}");
+        Console.WriteLine("\tError! Content type is not supported.");
     }
     catch (JsonException ex)
     {
-        Console.WriteLine($"\t\tError! {ex.Message}");
-        Console.WriteLine("\t\tError! Invalid json.");
+        Console.WriteLine($"\tError! {ex.Message}");
+        Console.WriteLine("\tError! Invalid json.");
     }
     catch (Exception ex)
     {
@@ -79,28 +83,30 @@ while (_accessToken == string.Empty)
     if (_accessToken != string.Empty)
     {
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("\tAuthorization successful");
+        Console.WriteLine("\t\tAuthorization successful");
         Console.ResetColor();
     }
     else
     {
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine("\tAuthorization is failed. Wrong ID or Password.");
+        Console.WriteLine("\t\tAuthorization is failed. Wrong ID or Password.");
         Console.ResetColor();
         Thread.Sleep(3000);
         Console.Clear();
     }
 }
 
-Console.WriteLine("\n\tAuthorization step is ended.");
+Console.BackgroundColor = ConsoleColor.Gray;
+Console.ForegroundColor = ConsoleColor.Black;
+Console.WriteLine("\n Authorization is ended ");
+Console.ResetColor();
 Thread.Sleep(3000);
 Console.Clear();
 
 _apiService = new ApiRequestService(_httpClient, _accessToken);
 
 // STEP TWO - get Features ======================================================
-Console.WriteLine();
-Console.WriteLine("Loading of Features step is started.");
+Console.WriteLine("\n Step of Features loading is started \n");
 
 do
 {
@@ -160,25 +166,26 @@ do
         _listOfAllFeatures.AddRange(_loadedFeatures.Features);
         _numberOfAlreadyLoadedFeatures = _listOfAllFeatures.Count;
 
-        Console.WriteLine($"\t{_numberOfAlreadyLoadedFeatures} Features was loaded successful.");
+        Console.WriteLine($"\t{_numberOfAlreadyLoadedFeatures} Features was loaded successful");
     }
     else
     {
-        Console.WriteLine("\tFeatures loading is failed.");
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("\tFeatures loading is failed");
+        Console.ResetColor();
         break;
     }
 
 }
 while (_numberOfAlreadyLoadedFeatures < _totalNumberOfFeatures);
 
-Console.WriteLine($"\t{_totalNumberOfFeatures}/{_numberOfAlreadyLoadedFeatures} - Features (total number / loaded).");
+Console.WriteLine($"\t\t{_numberOfAlreadyLoadedFeatures}/{_totalNumberOfFeatures} - Features (loaded / total number)");
 
-Console.WriteLine("Features loading step is ended.");
-Console.WriteLine();
+Console.WriteLine("\n Step of Features loading is ended \n");
 
 
 // STEP THREE - get Values ======================================================
-Console.WriteLine("Loading of Values step is started.");
+Console.WriteLine("\n Step of Values loading is started \n");
 
 do
 {
@@ -237,24 +244,26 @@ do
         _listofAllValues.AddRange(_loadedValues.Values);
         _numberOfAlreadyLoadedValues = _listofAllValues.Count;
 
-        Console.WriteLine($"\t{_numberOfAlreadyLoadedValues} Values was loaded successful.");
+        Console.WriteLine($"\t{_numberOfAlreadyLoadedValues} Values was loaded successful");
     }
     else
     {
-        Console.WriteLine("\tValues loading is failed.");
+        Console.ForegroundColor= ConsoleColor.Red;
+        Console.WriteLine("\tValues loading is failed");
+        Console.ResetColor();
         break;
     }
 }
 while (_numberOfAlreadyLoadedValues < _totalNumberOfValues);
 
-Console.WriteLine($"\t{_totalNumberOfValues}/{_numberOfAlreadyLoadedValues} - Values (total number / loaded).");
+Console.WriteLine($"\t\t{_numberOfAlreadyLoadedValues}/{_totalNumberOfValues} - Values (loaded / total number)");
 
-Console.WriteLine("Values loading step is ended.");
-Console.WriteLine();
+Console.WriteLine("\n Step of Values loading is ended \n");
 
 
 // STEP FOUR - save data to file ======================================================
-Console.WriteLine("Step of saving data to a file is started.");
+Console.WriteLine("\n Step of saving data to a file is started \n");
+
 
 // If directory does not exist, create it
 if (!Directory.Exists(_pathToFilesDirectory))
@@ -272,7 +281,7 @@ if (_totalNumberOfFeatures != 0 &&
         Name = "ETIM Features and Values",
         CreatedBy = _clientId,
         CreatedAt = DateTime.Now,
-        Description = "File with actual ETIM Features and Values for offline using.",
+        Description = "File with actual ETIM Features and Values for offline using",
         ContactInformation = "https://www.linkedin.com/in/oleksiiprykhodko",
         NumberOfEtimFeatures = _listOfAllFeatures.Count,
         NumberOfEtimValues = _listofAllValues.Count,
@@ -290,12 +299,13 @@ if (_totalNumberOfFeatures != 0 &&
         {
             _xmlSerializer.Serialize(_streamWriter, _xmlFileEntity);
         }
-        Console.WriteLine($"\tFile '{_fileName}' was created.");
+        Console.WriteLine($"\tFile '{_fileName}' was created");
+        _successfulResult = true;
     }
     catch (Exception ex)
     {
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine("\tError! A problem occurred when creating a while file creating.");
+        Console.WriteLine("\tError! A problem occurred when creating a while file creating");
     }
     finally
     {
@@ -305,18 +315,25 @@ if (_totalNumberOfFeatures != 0 &&
 else
 {
     Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine("Step of saving data to a file was skipped! Not all data was loaded from server.");
+    Console.WriteLine("\tStep of saving data to a file was skipped! Not all data was loaded from server");
     Console.ResetColor();
 }
 
+Console.WriteLine("\n Step of saving data to a file is ended \n");
 
-Console.WriteLine("Data in file saving step is ended.");
-Console.WriteLine();
+if (_successfulResult)
+{
+    Console.ForegroundColor = ConsoleColor.Green;
+    Console.WriteLine(" > SUCCESS <");
+}
+else
+{
+    Console.ForegroundColor = ConsoleColor.Red;
+    Console.WriteLine(" > FAILURE <");
+}
 
-Console.WriteLine("The End");
+Console.WriteLine("\n Press any key to close the window");
 Console.ReadKey();
-
-
 
 
 static string CreateAuthorizationString(string clientId, string clientSecret)
