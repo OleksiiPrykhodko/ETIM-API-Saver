@@ -29,7 +29,7 @@ int _numberOfLoadedNotDeprecatedFeatures = 0;
 int _numberOfLoadedDeprecatedFeatures = 0;
 bool _continueFeaturesLoading = true;
 
-var _listofAllValues = new List<Value>();
+var _listOfAllValues = new List<Value>();
 int _totalNumberOfNotDeprecatedValues = 0;
 int _totalNumberOfDeprecatedValues = 0;
 int _numberOfLoadedNotDeprecatedValues = 0;
@@ -180,7 +180,6 @@ do
         }
 
         _listOfAllFeatures.AddRange(_loadedFeatures.Features);
-        //_numberOfAlreadyLoadedFeatures = _listOfAllFeatures.Count;
 
         Console.WriteLine($"\t{_listOfAllFeatures.Count} Features was loaded successful");
     }
@@ -233,7 +232,8 @@ var _jsonValuesRequest = new RequestAllValuesWithMaximumDetailsAPIv2DTO()
 
 do
 {
-    _jsonValuesRequest.From = _numberOfAlreadyLoadedValues;
+    _jsonValuesRequest.From =
+        _jsonValuesRequest.Deprecated ? _numberOfLoadedDeprecatedValues : _numberOfLoadedNotDeprecatedValues;
 
     var _loadedValues = new ResultOfRequestAllValuesWithMaximumDetailsAPIv2DTO()
     {
@@ -272,11 +272,20 @@ do
 
     if (_loadedValues.Values.Length > 0)
     {
-        _totalNumberOfValues = _loadedValues.Total;
-        _listofAllValues.AddRange(_loadedValues.Values);
-        _numberOfAlreadyLoadedValues = _listofAllValues.Count;
+        if (_jsonValuesRequest.Deprecated)
+        {
+            _totalNumberOfDeprecatedValues = _loadedValues.Total;
+            _numberOfLoadedDeprecatedValues += _loadedValues.Values.Count();
+        }
+        else
+        {
+            _totalNumberOfNotDeprecatedValues = _loadedValues.Total;
+            _numberOfLoadedNotDeprecatedValues += _loadedValues.Values.Count();
+        }
 
-        Console.WriteLine($"\t{_numberOfAlreadyLoadedValues} Values was loaded successful");
+        _listOfAllValues.AddRange(_loadedValues.Values);
+
+        Console.WriteLine($"\t{_listOfAllValues.Count} Values was loaded successful");
     }
     else
     {
@@ -285,10 +294,26 @@ do
         Console.ResetColor();
         break;
     }
-}
-while (_numberOfAlreadyLoadedValues < _totalNumberOfValues);
 
-Console.WriteLine($"\t\t{_numberOfAlreadyLoadedValues}/{_totalNumberOfValues} - Values (loaded / total number)");
+    // Switch to deprecated values loading.
+    if (!_jsonValuesRequest.Deprecated && _numberOfLoadedNotDeprecatedValues == _totalNumberOfNotDeprecatedValues)
+    {
+        _jsonValuesRequest.Deprecated = true;
+    }
+
+    if (_totalNumberOfNotDeprecatedValues != 0 &&
+        _totalNumberOfDeprecatedValues != 0 &&
+        _totalNumberOfNotDeprecatedValues == _numberOfLoadedNotDeprecatedValues &&
+        _totalNumberOfDeprecatedValues == _numberOfLoadedDeprecatedValues)
+    {
+        _continueValuesLoading = false;
+    }
+}
+while (_continueValuesLoading);
+
+Console.WriteLine($"\t\t{_numberOfLoadedNotDeprecatedValues}/{_totalNumberOfNotDeprecatedValues} - Number of not deprecated Values (loaded / total number)");
+Console.WriteLine($"\t\t{_numberOfLoadedDeprecatedValues}/{_totalNumberOfDeprecatedValues} - Number of deprecated Values (loaded / total number)");
+Console.WriteLine($"\t\t{_numberOfLoadedNotDeprecatedValues + _numberOfLoadedDeprecatedValues}/{_totalNumberOfNotDeprecatedValues + _totalNumberOfDeprecatedValues} - Values (loaded / total number)");
 
 Console.WriteLine("\n Step of Values loading is ended \n");
 
@@ -307,8 +332,10 @@ if (_totalNumberOfNotDeprecatedFeatures != 0 &&
     _totalNumberOfDeprecatedFeatures != 0 &&
     _totalNumberOfNotDeprecatedFeatures == _numberOfLoadedNotDeprecatedFeatures &&
     _totalNumberOfDeprecatedFeatures == _numberOfLoadedDeprecatedFeatures &&
-    _totalNumberOfValues != 0 &&
-    _totalNumberOfValues == _numberOfAlreadyLoadedValues)
+    _totalNumberOfNotDeprecatedValues != 0 &&
+    _totalNumberOfDeprecatedValues != 0 &&
+    _totalNumberOfNotDeprecatedValues == _numberOfLoadedNotDeprecatedValues &&
+    _totalNumberOfDeprecatedValues == _numberOfLoadedDeprecatedValues)
 {
     var _xmlFileEntity = new EtimFeaturesAndValuesXmlFileEntity()
     {
@@ -318,9 +345,9 @@ if (_totalNumberOfNotDeprecatedFeatures != 0 &&
         Description = "File with actual ETIM Features and Values for offline using",
         ContactInformation = "https://www.linkedin.com/in/oleksiiprykhodko",
         NumberOfEtimFeatures = _listOfAllFeatures.Count,
-        NumberOfEtimValues = _listofAllValues.Count,
+        NumberOfEtimValues = _listOfAllValues.Count,
         EtimFeatures = _listOfAllFeatures.ToArray(),
-        EtimValues = _listofAllValues.ToArray()
+        EtimValues = _listOfAllValues.ToArray()
     };
 
     var _fileName = $"ETIM Features and Values {DateTime.Now.Year}.{DateTime.Now.Month}.{DateTime.Now.Day} {DateTime.Now.Hour}-{DateTime.Now.Minute}-{DateTime.Now.Second}.xml";
