@@ -108,21 +108,22 @@ _apiService = new ApiRequestService(_httpClient, _accessToken);
 // STEP TWO - get Features ======================================================
 Console.WriteLine("\n Step of Features loading is started \n");
 
+var _jsonFeaturesRequest = new RequestAllFeatureWithMaximumDetailsAPIv2DTO()
+{
+    From = 0,
+    Size = 1000,
+    Languagecode = "EN",
+    Deprecated = false,
+    Include = new Include
+    {
+        Descriptions = true,
+        Translations = false
+    }
+};
+
 do
 {
-
-    var _jsonRequest = new RequestAllFeatureWithMaximumDetailsAPIv2DTO()
-    {
-        From = _numberOfAlreadyLoadedFeatures,
-        Size = 1000,
-        Languagecode = "EN",
-        Deprecated = false,
-        Include = new Include
-        {
-            Descriptions = true,
-            Translations = false
-        }
-    };
+    _jsonFeaturesRequest.From = _numberOfAlreadyLoadedFeatures;
 
     ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO _loadedFeatures =
         new ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO()
@@ -134,7 +135,7 @@ do
     try
     {
         Console.ForegroundColor = ConsoleColor.Red;
-        _loadedFeatures = _apiService.GetFeatures(_jsonRequest);
+        _loadedFeatures = _apiService.GetFeatures(_jsonFeaturesRequest);
     }
     catch (AggregateException ex)
     {
@@ -187,21 +188,22 @@ Console.WriteLine("\n Step of Features loading is ended \n");
 // STEP THREE - get Values ======================================================
 Console.WriteLine("\n Step of Values loading is started \n");
 
+var _jsonValuesRequest = new RequestAllValuesWithMaximumDetailsAPIv2DTO()
+{
+    From = 0,
+    Size = 1000,
+    Languagecode = "EN",
+    Deprecated = false,
+    Include = new Include
+    {
+        Descriptions = true,
+        Translations = false
+    }
+};
+
 do
 {
-
-    var _jsonRequest = new RequestAllValuesWithMaximumDetailsAPIv2DTO()
-    {
-        From = _numberOfAlreadyLoadedValues,
-        Size = 1000,
-        Languagecode = "EN",
-        Deprecated = false,
-        Include = new Include
-        {
-            Descriptions = true,
-            Translations = false
-        }
-    };
+    _jsonValuesRequest.From = _numberOfAlreadyLoadedValues;
 
     var _loadedValues = new ResultOfRequestAllValuesWithMaximumDetailsAPIv2DTO()
     {
@@ -212,7 +214,7 @@ do
     try
     {
         Console.ForegroundColor = ConsoleColor.Red;
-        _loadedValues = _apiService.GetValues(_jsonRequest);
+        _loadedValues = _apiService.GetValues(_jsonValuesRequest);
     }
     catch (AggregateException ex)
     {
