@@ -23,13 +23,18 @@ ApiAuthorizationService _apiAuthorizationService = new ApiAuthorizationService(_
 ApiRequestService _apiService;
 
 var _listOfAllFeatures = new List<Feature>();
+int _totalNumberOfNotDeprecatedFeatures = 0;
+int _totalNumberOfDeprecatedFeatures = 0;
+int _numberOfLoadedNotDeprecatedFeatures = 0;
+int _numberOfLoadedDeprecatedFeatures = 0;
+bool _continueFeaturesLoading = true;
+
 var _listofAllValues = new List<Value>();
-
-int _totalNumberOfFeatures = 0;
-int _totalNumberOfValues = 0;
-
-int _numberOfAlreadyLoadedFeatures = 0;
-int _numberOfAlreadyLoadedValues = 0;
+int _totalNumberOfNotDeprecatedValues = 0;
+int _totalNumberOfDeprecatedValues = 0;
+int _numberOfLoadedNotDeprecatedValues = 0;
+int _numberOfLoadedDeprecatedValues = 0;
+bool _continueValuesLoading = true;
 
 bool _successfulResult = false;
 
@@ -123,14 +128,14 @@ var _jsonFeaturesRequest = new RequestAllFeatureWithMaximumDetailsAPIv2DTO()
 
 do
 {
-    _jsonFeaturesRequest.From = _numberOfAlreadyLoadedFeatures;
+    _jsonFeaturesRequest.From =
+        _jsonFeaturesRequest.Deprecated ? _numberOfLoadedDeprecatedFeatures : _numberOfLoadedNotDeprecatedFeatures;
 
-    ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO _loadedFeatures =
-        new ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO()
-        {
-            Total = 0,
-            Features = new Feature[0]
-        };
+    var _loadedFeatures = new ResultOfRequestAllFeatureWithMaximumDetailsAPIv2DTO()
+    {
+        Total = 0,
+        Features = new Feature[0]
+    };
 
     try
     {
@@ -163,11 +168,21 @@ do
 
     if (_loadedFeatures.Features.Length > 0)
     {
-        _totalNumberOfFeatures = _loadedFeatures.Total;
-        _listOfAllFeatures.AddRange(_loadedFeatures.Features);
-        _numberOfAlreadyLoadedFeatures = _listOfAllFeatures.Count;
+        if (_jsonFeaturesRequest.Deprecated)
+        {
+            _totalNumberOfDeprecatedFeatures = _loadedFeatures.Total;
+            _numberOfLoadedDeprecatedFeatures += _loadedFeatures.Features.Count();
+        }
+        else
+        {
+            _totalNumberOfNotDeprecatedFeatures = _loadedFeatures.Total;
+            _numberOfLoadedNotDeprecatedFeatures += _loadedFeatures.Features.Count();
+        }
 
-        Console.WriteLine($"\t{_numberOfAlreadyLoadedFeatures} Features was loaded successful");
+        _listOfAllFeatures.AddRange(_loadedFeatures.Features);
+        //_numberOfAlreadyLoadedFeatures = _listOfAllFeatures.Count;
+
+        Console.WriteLine($"\t{_listOfAllFeatures.Count} Features was loaded successful");
     }
     else
     {
@@ -177,10 +192,25 @@ do
         break;
     }
 
-}
-while (_numberOfAlreadyLoadedFeatures < _totalNumberOfFeatures);
+    // Switch to deprecated features loading.
+    if (!_jsonFeaturesRequest.Deprecated && _numberOfLoadedNotDeprecatedFeatures == _totalNumberOfNotDeprecatedFeatures)
+    {
+        _jsonFeaturesRequest.Deprecated = true;
+    }
 
-Console.WriteLine($"\t\t{_numberOfAlreadyLoadedFeatures}/{_totalNumberOfFeatures} - Features (loaded / total number)");
+    if (_totalNumberOfNotDeprecatedFeatures != 0 &&
+        _totalNumberOfDeprecatedFeatures != 0 &&
+        _totalNumberOfNotDeprecatedFeatures == _numberOfLoadedNotDeprecatedFeatures &&
+        _totalNumberOfDeprecatedFeatures == _numberOfLoadedDeprecatedFeatures)
+    {
+        _continueFeaturesLoading = false;
+    }
+}
+while (_continueFeaturesLoading);
+
+Console.WriteLine($"\t\t{_numberOfLoadedNotDeprecatedFeatures}/{_totalNumberOfNotDeprecatedFeatures} - Number of not deprecated Features (loaded / total number)");
+Console.WriteLine($"\t\t{_numberOfLoadedDeprecatedFeatures}/{_totalNumberOfDeprecatedFeatures} - Number of deprecated Features (loaded / total number)");
+Console.WriteLine($"\t\t{_numberOfLoadedNotDeprecatedFeatures + _numberOfLoadedDeprecatedFeatures}/{_totalNumberOfNotDeprecatedFeatures + _totalNumberOfDeprecatedFeatures} - Features (loaded / total number)");
 
 Console.WriteLine("\n Step of Features loading is ended \n");
 
@@ -250,7 +280,7 @@ do
     }
     else
     {
-        Console.ForegroundColor= ConsoleColor.Red;
+        Console.ForegroundColor = ConsoleColor.Red;
         Console.WriteLine("\tValues loading is failed");
         Console.ResetColor();
         break;
@@ -273,9 +303,11 @@ if (!Directory.Exists(_pathToFilesDirectory))
     Directory.CreateDirectory(_pathToFilesDirectory);
 }
 
-if (_totalNumberOfFeatures != 0 && 
+if (_totalNumberOfNotDeprecatedFeatures != 0 &&
+    _totalNumberOfDeprecatedFeatures != 0 &&
+    _totalNumberOfNotDeprecatedFeatures == _numberOfLoadedNotDeprecatedFeatures &&
+    _totalNumberOfDeprecatedFeatures == _numberOfLoadedDeprecatedFeatures &&
     _totalNumberOfValues != 0 &&
-    _totalNumberOfFeatures == _numberOfAlreadyLoadedFeatures &&
     _totalNumberOfValues == _numberOfAlreadyLoadedValues)
 {
     var _xmlFileEntity = new EtimFeaturesAndValuesXmlFileEntity()
